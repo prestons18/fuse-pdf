@@ -274,22 +274,33 @@ class PDFRenderer {
     // Calculate box dimensions
     const boxWidth = node.width ?? (this.context.bounds.width - 2 * this.DEFAULT_MARGIN - marginLeft - marginRight);
 
-    // Adjust cursor for padding and render children
-    this.context.cursor.x = boxX + paddingLeft;
-    this.context.cursor.y = boxStartY - paddingTop;
-
-    const contentStartY = this.context.cursor.y;
-
-    if (node.children) {
-      node.children.forEach((child) => this.walk(child));
+    // If we need to draw background/border, we need to know the height first
+    // Do a dry run to calculate content height if height is not specified
+    let boxHeight: number;
+    
+    if (!node.height && (node.backgroundColor || node.border)) {
+      // Dry run: calculate content height without actually drawing
+      const tempCursor = { ...this.context.cursor };
+      this.context.cursor.x = boxX + paddingLeft;
+      this.context.cursor.y = boxStartY - paddingTop;
+      
+      const contentStartY = this.context.cursor.y;
+      
+      if (node.children) {
+        node.children.forEach((child) => this.walk(child));
+      }
+      
+      const contentEndY = this.context.cursor.y;
+      const contentHeight = contentStartY - contentEndY;
+      boxHeight = contentHeight + paddingTop + paddingBottom;
+      
+      // Restore cursor for actual rendering
+      this.context.cursor = tempCursor;
+    } else {
+      boxHeight = node.height ?? 0;
     }
 
-    // Calculate actual content height
-    const contentEndY = this.context.cursor.y;
-    const contentHeight = contentStartY - contentEndY;
-    const boxHeight = node.height ?? (contentHeight + paddingTop + paddingBottom);
-
-    // Draw background if specified
+    // Draw background FIRST (underneath content)
     if (node.backgroundColor) {
       this.context.page.drawRectangle({
         x: boxX,
@@ -300,7 +311,7 @@ class PDFRenderer {
       });
     }
 
-    // Draw border if specified
+    // Draw border
     if (node.border) {
       this.context.page.drawRectangle({
         x: boxX,
@@ -310,6 +321,22 @@ class PDFRenderer {
         borderColor: this.hexToRgb(node.border.color),
         borderWidth: node.border.width,
       });
+    }
+
+    // Now render children on top of background (only once)
+    this.context.cursor.x = boxX + paddingLeft;
+    this.context.cursor.y = boxStartY - paddingTop;
+
+    if (node.children) {
+      node.children.forEach((child) => this.walk(child));
+    }
+
+    // Recalculate height if it wasn't pre-calculated
+    if (!node.height && !node.backgroundColor && !node.border) {
+      const contentEndY = this.context.cursor.y;
+      const contentStartY = boxStartY - paddingTop;
+      const contentHeight = contentStartY - contentEndY;
+      boxHeight = contentHeight + paddingTop + paddingBottom;
     }
 
     // Restore cursor position based on positioning mode
