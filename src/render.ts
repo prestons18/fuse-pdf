@@ -4,10 +4,25 @@ import { writeFileSync } from "fs";
 
 interface RenderContext {
   page: PDFPage;
-  font: PDFFont;
+  fonts: FontCache;
   cursor: { x: number; y: number };
   bounds: { width: number; height: number; margin: number };
   pdf: PDFDocument;
+}
+
+interface FontCache {
+  Helvetica: PDFFont;
+  HelveticaBold: PDFFont;
+  HelveticaOblique: PDFFont;
+  HelveticaBoldOblique: PDFFont;
+  Times: PDFFont;
+  TimesBold: PDFFont;
+  TimesItalic: PDFFont;
+  TimesBoldItalic: PDFFont;
+  Courier: PDFFont;
+  CourierBold: PDFFont;
+  CourierOblique: PDFFont;
+  CourierBoldOblique: PDFFont;
 }
 
 class PDFRenderer {
@@ -20,11 +35,26 @@ class PDFRenderer {
 
   async render(vnode: VNode, output: string): Promise<void> {
     const page = this.pdf.addPage([this.PAGE_WIDTH, this.PAGE_HEIGHT]);
-    const font = await this.pdf.embedFont(StandardFonts.Helvetica);
+    
+    // Preload all fonts
+    const fonts: FontCache = {
+      Helvetica: await this.pdf.embedFont(StandardFonts.Helvetica),
+      HelveticaBold: await this.pdf.embedFont(StandardFonts.HelveticaBold),
+      HelveticaOblique: await this.pdf.embedFont(StandardFonts.HelveticaOblique),
+      HelveticaBoldOblique: await this.pdf.embedFont(StandardFonts.HelveticaBoldOblique),
+      Times: await this.pdf.embedFont(StandardFonts.TimesRoman),
+      TimesBold: await this.pdf.embedFont(StandardFonts.TimesRomanBold),
+      TimesItalic: await this.pdf.embedFont(StandardFonts.TimesRomanItalic),
+      TimesBoldItalic: await this.pdf.embedFont(StandardFonts.TimesRomanBoldItalic),
+      Courier: await this.pdf.embedFont(StandardFonts.Courier),
+      CourierBold: await this.pdf.embedFont(StandardFonts.CourierBold),
+      CourierOblique: await this.pdf.embedFont(StandardFonts.CourierOblique),
+      CourierBoldOblique: await this.pdf.embedFont(StandardFonts.CourierBoldOblique),
+    };
 
     this.context = {
       page,
-      font,
+      fonts,
       cursor: { x: this.DEFAULT_MARGIN, y: this.PAGE_HEIGHT - this.DEFAULT_MARGIN },
       bounds: {
         width: this.PAGE_WIDTH,
@@ -71,6 +101,9 @@ class PDFRenderer {
     const colour = node.colour ?? "#000000";
     const align = node.align ?? "left";
     const margin = node.margin ?? [0, 0, 0, 0];
+    const fontFamily = node.font ?? "Helvetica";
+    const weight = node.weight ?? "normal";
+    const style = node.style ?? "normal";
 
     const [top, right, bottom, left] = margin;
 
@@ -82,11 +115,14 @@ class PDFRenderer {
       this.addNewPage();
     }
 
+    // Get the appropriate font
+    const font = this.getFont(fontFamily, weight, style);
+
     // Calculate available width for text
     const availableWidth = this.context.bounds.width - 2 * this.DEFAULT_MARGIN - left - right;
     
     // Wrap text into lines
-    const lines = this.wrapText(node.content, size, availableWidth);
+    const lines = this.wrapText(node.content, size, availableWidth, font);
 
     // Draw each line
     for (const line of lines) {
@@ -95,7 +131,7 @@ class PDFRenderer {
         this.addNewPage();
       }
 
-      const lineWidth = this.context.font.widthOfTextAtSize(line, size);
+      const lineWidth = font.widthOfTextAtSize(line, size);
       let x = this.DEFAULT_MARGIN + left;
 
       if (align === "center") {
@@ -109,7 +145,7 @@ class PDFRenderer {
         x,
         y: this.context.cursor.y,
         size,
-        font: this.context.font,
+        font,
         color: this.hexToRgb(colour),
       });
 
@@ -121,14 +157,14 @@ class PDFRenderer {
     this.context.cursor.y -= bottom;
   }
 
-  private wrapText(text: string, fontSize: number, maxWidth: number): string[] {
+  private wrapText(text: string, fontSize: number, maxWidth: number, font: PDFFont): string[] {
     const words = text.split(' ');
     const lines: string[] = [];
     let currentLine = '';
 
     for (const word of words) {
       const testLine = currentLine ? `${currentLine} ${word}` : word;
-      const testWidth = this.context.font.widthOfTextAtSize(testLine, fontSize);
+      const testWidth = font.widthOfTextAtSize(testLine, fontSize);
 
       if (testWidth > maxWidth && currentLine) {
         lines.push(currentLine);
@@ -143,6 +179,42 @@ class PDFRenderer {
     }
 
     return lines.length > 0 ? lines : [''];
+  }
+
+  private getFont(family: string, weight: string, style: string): PDFFont {
+    // Handle style="bold-italic" as a special case
+    if (style === "bold-italic") {
+      if (family === "Helvetica") return this.context.fonts.HelveticaBoldOblique;
+      if (family === "Times") return this.context.fonts.TimesBoldItalic;
+      if (family === "Courier") return this.context.fonts.CourierBoldOblique;
+    }
+    
+    // Handle weight and style combinations
+    const isBold = weight === "bold" || style === "bold-italic";
+    const isItalic = style === "italic" || style === "bold-italic";
+    
+    if (family === "Helvetica") {
+      if (isBold && isItalic) return this.context.fonts.HelveticaBoldOblique;
+      if (isBold) return this.context.fonts.HelveticaBold;
+      if (isItalic) return this.context.fonts.HelveticaOblique;
+      return this.context.fonts.Helvetica;
+    }
+    
+    if (family === "Times") {
+      if (isBold && isItalic) return this.context.fonts.TimesBoldItalic;
+      if (isBold) return this.context.fonts.TimesBold;
+      if (isItalic) return this.context.fonts.TimesItalic;
+      return this.context.fonts.Times;
+    }
+    
+    if (family === "Courier") {
+      if (isBold && isItalic) return this.context.fonts.CourierBoldOblique;
+      if (isBold) return this.context.fonts.CourierBold;
+      if (isItalic) return this.context.fonts.CourierOblique;
+      return this.context.fonts.Courier;
+    }
+    
+    return this.context.fonts.Helvetica;
   }
 
   private renderSection(node: SectionNode): void {

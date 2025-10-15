@@ -23,12 +23,18 @@ export const Text = ({
     colour = "#000000",
     align = "left",
     margin = [0, 0, 0, 0],
+    font = "Helvetica",
+    weight = "normal",
+    style = "normal",
     children,
 }: ComponentProps<{
     size?: number;
     colour?: string;
     align?: "left" | "center" | "right";
     margin?: [number, number, number, number];
+    font?: "Helvetica" | "Times" | "Courier";
+    weight?: "normal" | "bold";
+    style?: "normal" | "italic" | "bold-italic";
 }>): TextNode => ({
     type: "Text" as const,
     content: Array.isArray(children)
@@ -40,6 +46,9 @@ export const Text = ({
     colour,
     align,
     margin,
+    font,
+    weight,
+    style,
 });
 
 export const Section = ({ title, children }: ComponentProps<{ title: string }>): SectionNode => ({

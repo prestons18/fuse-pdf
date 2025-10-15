@@ -5,6 +5,9 @@ export interface TextNode {
   colour?: string;
   align?: "left" | "center" | "right";
   margin?: [number, number, number, number];
+  font?: "Helvetica" | "Times" | "Courier";
+  weight?: "normal" | "bold";
+  style?: "normal" | "italic" | "bold-italic";
 }
 
 export interface SectionNode {
