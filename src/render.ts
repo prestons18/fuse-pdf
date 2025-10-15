@@ -10,20 +10,7 @@ interface RenderContext {
   pdf: PDFDocument;
 }
 
-interface FontCache {
-  Helvetica: PDFFont;
-  HelveticaBold: PDFFont;
-  HelveticaOblique: PDFFont;
-  HelveticaBoldOblique: PDFFont;
-  Times: PDFFont;
-  TimesBold: PDFFont;
-  TimesItalic: PDFFont;
-  TimesBoldItalic: PDFFont;
-  Courier: PDFFont;
-  CourierBold: PDFFont;
-  CourierOblique: PDFFont;
-  CourierBoldOblique: PDFFont;
-}
+type FontCache = Record<string, PDFFont>;
 
 class PDFRenderer {
   private context!: RenderContext;
@@ -37,20 +24,24 @@ class PDFRenderer {
     const page = this.pdf.addPage([this.PAGE_WIDTH, this.PAGE_HEIGHT]);
     
     // Preload all fonts
-    const fonts: FontCache = {
-      Helvetica: await this.pdf.embedFont(StandardFonts.Helvetica),
-      HelveticaBold: await this.pdf.embedFont(StandardFonts.HelveticaBold),
-      HelveticaOblique: await this.pdf.embedFont(StandardFonts.HelveticaOblique),
-      HelveticaBoldOblique: await this.pdf.embedFont(StandardFonts.HelveticaBoldOblique),
-      Times: await this.pdf.embedFont(StandardFonts.TimesRoman),
-      TimesBold: await this.pdf.embedFont(StandardFonts.TimesRomanBold),
-      TimesItalic: await this.pdf.embedFont(StandardFonts.TimesRomanItalic),
-      TimesBoldItalic: await this.pdf.embedFont(StandardFonts.TimesRomanBoldItalic),
-      Courier: await this.pdf.embedFont(StandardFonts.Courier),
-      CourierBold: await this.pdf.embedFont(StandardFonts.CourierBold),
-      CourierOblique: await this.pdf.embedFont(StandardFonts.CourierOblique),
-      CourierBoldOblique: await this.pdf.embedFont(StandardFonts.CourierBoldOblique),
-    };
+    const fontMap = [
+      ['Helvetica', StandardFonts.Helvetica],
+      ['HelveticaBold', StandardFonts.HelveticaBold],
+      ['HelveticaOblique', StandardFonts.HelveticaOblique],
+      ['HelveticaBoldOblique', StandardFonts.HelveticaBoldOblique],
+      ['Times', StandardFonts.TimesRoman],
+      ['TimesBold', StandardFonts.TimesRomanBold],
+      ['TimesItalic', StandardFonts.TimesRomanItalic],
+      ['TimesBoldItalic', StandardFonts.TimesRomanBoldItalic],
+      ['Courier', StandardFonts.Courier],
+      ['CourierBold', StandardFonts.CourierBold],
+      ['CourierOblique', StandardFonts.CourierOblique],
+      ['CourierBoldOblique', StandardFonts.CourierBoldOblique],
+    ] as const;
+    
+    const fonts: FontCache = Object.fromEntries(
+      await Promise.all(fontMap.map(async ([key, font]) => [key, await this.pdf.embedFont(font)]))
+    );
 
     this.context = {
       page,
@@ -72,28 +63,18 @@ class PDFRenderer {
   }
 
   private walk(node: VNode): void {
-    if (Array.isArray(node)) {
-      node.forEach((n) => this.walk(n));
-      return;
-    }
+    if (Array.isArray(node)) return node.forEach((n) => this.walk(n));
     if (!node) return;
 
-    const handlers: Record<string, () => void> = {
-      Doc: () => this.renderContainer(node as ContainerNode),
-      Page: () => this.renderContainer(node as ContainerNode),
-      Text: () => this.renderText(node as TextNode),
-      Section: () => this.renderSection(node as SectionNode),
-      Box: () => this.renderBox(node as BoxNode),
+    const handlers: Record<string, (n: any) => void> = {
+      Doc: (n) => n.children?.forEach((c: VNode) => this.walk(c)),
+      Page: (n) => n.children?.forEach((c: VNode) => this.walk(c)),
+      Text: (n) => this.renderText(n),
+      Section: (n) => this.renderSection(n),
+      Box: (n) => this.renderBox(n),
     };
 
-    const handler = handlers[node.type];
-    if (handler) handler();
-  }
-
-  private renderContainer(node: ContainerNode): void {
-    if (node.children) {
-      node.children.forEach((child) => this.walk(child));
-    }
+    handlers[node.type]?.(node);
   }
 
   private renderText(node: TextNode): void {
@@ -183,39 +164,18 @@ class PDFRenderer {
   }
 
   private getFont(family: string, weight: string, style: string): PDFFont {
-    // Handle style="bold-italic" as a special case
-    if (style === "bold-italic") {
-      if (family === "Helvetica") return this.context.fonts.HelveticaBoldOblique;
-      if (family === "Times") return this.context.fonts.TimesBoldItalic;
-      if (family === "Courier") return this.context.fonts.CourierBoldOblique;
-    }
-    
-    // Handle weight and style combinations
     const isBold = weight === "bold" || style === "bold-italic";
     const isItalic = style === "italic" || style === "bold-italic";
     
-    if (family === "Helvetica") {
-      if (isBold && isItalic) return this.context.fonts.HelveticaBoldOblique;
-      if (isBold) return this.context.fonts.HelveticaBold;
-      if (isItalic) return this.context.fonts.HelveticaOblique;
-      return this.context.fonts.Helvetica;
-    }
+    const fontMap: Record<string, [string, string, string, string]> = {
+      Helvetica: ['Helvetica', 'HelveticaBold', 'HelveticaOblique', 'HelveticaBoldOblique'],
+      Times: ['Times', 'TimesBold', 'TimesItalic', 'TimesBoldItalic'],
+      Courier: ['Courier', 'CourierBold', 'CourierOblique', 'CourierBoldOblique'],
+    };
     
-    if (family === "Times") {
-      if (isBold && isItalic) return this.context.fonts.TimesBoldItalic;
-      if (isBold) return this.context.fonts.TimesBold;
-      if (isItalic) return this.context.fonts.TimesItalic;
-      return this.context.fonts.Times;
-    }
-    
-    if (family === "Courier") {
-      if (isBold && isItalic) return this.context.fonts.CourierBoldOblique;
-      if (isBold) return this.context.fonts.CourierBold;
-      if (isItalic) return this.context.fonts.CourierOblique;
-      return this.context.fonts.Courier;
-    }
-    
-    return this.context.fonts.Helvetica;
+    const fonts = fontMap[family] || fontMap.Helvetica;
+    const idx = (isBold ? 1 : 0) + (isItalic ? 2 : 0);
+    return this.context.fonts[fonts[idx]];
   }
 
   private renderSection(node: SectionNode): void {
