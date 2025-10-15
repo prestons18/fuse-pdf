@@ -1,4 +1,4 @@
-export type { VNode, TextNode, SectionNode, ContainerNode } from "./render";
+export type { VNode, TextNode, SectionNode, ContainerNode } from "./types";
 
 // JSX factory function
 export function createElement(
