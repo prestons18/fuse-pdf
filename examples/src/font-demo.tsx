@@ -1,7 +1,7 @@
 /** @jsx createElement */
-import { createElement } from "./src/runtime";
-import { Doc, Page, Text, Section, Box } from "./src/components";
-import { render } from "./src/render";
+import { createElement } from "../../src/runtime";
+import { Doc, Page, Text, Section, Box } from "../../src/components";
+import { render } from "../../src/render";
 
 const demo = (
   <Doc>
