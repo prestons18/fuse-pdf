@@ -4,15 +4,18 @@ type ComponentProps<T = {}> = T & {
     children?: VNode | VNode[];
 };
 
+const normalizeChildren = (children?: VNode | VNode[]): VNode[] =>
+    Array.isArray(children) ? children : children ? [children] : [];
+
 // Component factories
 export const Doc = ({ children }: ComponentProps): ContainerNode => ({
     type: "Doc",
-    children: Array.isArray(children) ? children : children ? [children] : []
+    children: normalizeChildren(children)
 });
 
 export const Page = ({ children }: ComponentProps): ContainerNode => ({
     type: "Page",
-    children: Array.isArray(children) ? children : children ? [children] : []
+    children: normalizeChildren(children)
 });
 
 export const Text = ({
@@ -42,5 +45,5 @@ export const Text = ({
 export const Section = ({ title, children }: ComponentProps<{ title: string }>): SectionNode => ({
     type: "Section",
     title,
-    children: Array.isArray(children) ? children : children ? [children] : []
+    children: normalizeChildren(children)
 });
