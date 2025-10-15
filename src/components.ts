@@ -1,4 +1,4 @@
-import type { VNode, TextNode, SectionNode, ContainerNode } from "./render";
+import type { VNode, TextNode, SectionNode, ContainerNode } from "./types";
 
 type ComponentProps<T = {}> = T & {
     children?: VNode | VNode[];
