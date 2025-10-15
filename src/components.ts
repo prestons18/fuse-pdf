@@ -1,4 +1,4 @@
-import type { VNode, TextNode, SectionNode, ContainerNode } from "./types";
+import type { VNode, TextNode, SectionNode, ContainerNode, BoxNode } from "./types";
 
 type ComponentProps<T = {}> = T & {
     children?: VNode | VNode[];
@@ -45,5 +45,34 @@ export const Text = ({
 export const Section = ({ title, children }: ComponentProps<{ title: string }>): SectionNode => ({
     type: "Section",
     title,
+    children: normalizeChildren(children)
+});
+
+export const Box = ({
+    width,
+    height,
+    padding = [0, 0, 0, 0],
+    margin = [0, 0, 0, 0],
+    border,
+    backgroundColor,
+    children,
+}: ComponentProps<{
+    width?: number;
+    height?: number;
+    padding?: [number, number, number, number];
+    margin?: [number, number, number, number];
+    border?: {
+        width: number;
+        color: string;
+    };
+    backgroundColor?: string;
+}>): BoxNode => ({
+    type: "Box",
+    width,
+    height,
+    padding,
+    margin,
+    border,
+    backgroundColor,
     children: normalizeChildren(children)
 });

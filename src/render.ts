@@ -1,5 +1,5 @@
 import { PDFDocument, PDFPage, PDFFont, StandardFonts, rgb, type RGB } from "pdf-lib";
-import type { ContainerNode, SectionNode, TextNode, VNode } from "./types";
+import type { ContainerNode, SectionNode, TextNode, VNode, BoxNode } from "./types";
 import { writeFileSync } from "fs";
 
 interface RenderContext {
@@ -53,6 +53,7 @@ class PDFRenderer {
       Page: () => this.renderContainer(node as ContainerNode),
       Text: () => this.renderText(node as TextNode),
       Section: () => this.renderSection(node as SectionNode),
+      Box: () => this.renderBox(node as BoxNode),
     };
 
     const handler = handlers[node.type];
@@ -81,27 +82,67 @@ class PDFRenderer {
       this.addNewPage();
     }
 
-    // Calculate x position based on alignment
-    const textWidth = this.context.font.widthOfTextAtSize(node.content, size);
-    let x = this.DEFAULT_MARGIN + left;
+    // Calculate available width for text
+    const availableWidth = this.context.bounds.width - 2 * this.DEFAULT_MARGIN - left - right;
+    
+    // Wrap text into lines
+    const lines = this.wrapText(node.content, size, availableWidth);
 
-    if (align === "center") {
-      x = (this.context.bounds.width - textWidth) / 2;
-    } else if (align === "right") {
-      x = this.context.bounds.width - textWidth - this.DEFAULT_MARGIN - right;
+    // Draw each line
+    for (const line of lines) {
+      // Check if we need a new page
+      if (this.context.cursor.y < this.DEFAULT_MARGIN) {
+        this.addNewPage();
+      }
+
+      const lineWidth = this.context.font.widthOfTextAtSize(line, size);
+      let x = this.DEFAULT_MARGIN + left;
+
+      if (align === "center") {
+        x = (this.context.bounds.width - lineWidth) / 2;
+      } else if (align === "right") {
+        x = this.context.bounds.width - lineWidth - this.DEFAULT_MARGIN - right;
+      }
+
+      // Draw text
+      this.context.page.drawText(line, {
+        x,
+        y: this.context.cursor.y,
+        size,
+        font: this.context.font,
+        color: this.hexToRgb(colour),
+      });
+
+      // Move cursor down for next line
+      this.context.cursor.y -= size + 4;
     }
 
-    // Draw text
-    this.context.page.drawText(node.content, {
-      x,
-      y: this.context.cursor.y,
-      size,
-      font: this.context.font,
-      color: this.hexToRgb(colour),
-    });
+    // Apply bottom margin
+    this.context.cursor.y -= bottom;
+  }
 
-    // Update cursor position
-    this.context.cursor.y -= size + 4 + bottom;
+  private wrapText(text: string, fontSize: number, maxWidth: number): string[] {
+    const words = text.split(' ');
+    const lines: string[] = [];
+    let currentLine = '';
+
+    for (const word of words) {
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      const testWidth = this.context.font.widthOfTextAtSize(testLine, fontSize);
+
+      if (testWidth > maxWidth && currentLine) {
+        lines.push(currentLine);
+        currentLine = word;
+      } else {
+        currentLine = testLine;
+      }
+    }
+
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+
+    return lines.length > 0 ? lines : [''];
   }
 
   private renderSection(node: SectionNode): void {
@@ -122,6 +163,71 @@ class PDFRenderer {
 
     // Add spacing after section
     this.context.cursor.y -= 10;
+  }
+
+  private renderBox(node: BoxNode): void {
+    const margin = node.margin ?? [0, 0, 0, 0];
+    const padding = node.padding ?? [0, 0, 0, 0];
+    const [marginTop, marginRight, marginBottom, marginLeft] = margin;
+    const [paddingTop, paddingRight, paddingBottom, paddingLeft] = padding;
+
+    // Apply top margin
+    this.context.cursor.y -= marginTop;
+
+    // Check if we need a new page
+    if (this.context.cursor.y < this.DEFAULT_MARGIN) {
+      this.addNewPage();
+    }
+
+    // Calculate box dimensions
+    const boxX = this.DEFAULT_MARGIN + marginLeft;
+    const boxWidth = node.width ?? (this.context.bounds.width - 2 * this.DEFAULT_MARGIN - marginLeft - marginRight);
+
+    // Save starting position
+    const boxStartY = this.context.cursor.y;
+    const savedCursor = { ...this.context.cursor };
+
+    // Adjust cursor for padding and render children
+    this.context.cursor.x = boxX + paddingLeft;
+    this.context.cursor.y -= paddingTop;
+
+    const contentStartY = this.context.cursor.y;
+
+    if (node.children) {
+      node.children.forEach((child) => this.walk(child));
+    }
+
+    // Calculate actual content height
+    const contentEndY = this.context.cursor.y;
+    const contentHeight = contentStartY - contentEndY;
+    const boxHeight = node.height ?? (contentHeight + paddingTop + paddingBottom);
+
+    // Draw background if specified
+    if (node.backgroundColor) {
+      this.context.page.drawRectangle({
+        x: boxX,
+        y: boxStartY - boxHeight,
+        width: boxWidth,
+        height: boxHeight,
+        color: this.hexToRgb(node.backgroundColor),
+      });
+    }
+
+    // Draw border if specified
+    if (node.border) {
+      this.context.page.drawRectangle({
+        x: boxX,
+        y: boxStartY - boxHeight,
+        width: boxWidth,
+        height: boxHeight,
+        borderColor: this.hexToRgb(node.border.color),
+        borderWidth: node.border.width,
+      });
+    }
+
+    // Restore cursor position and move past the box
+    this.context.cursor.x = savedCursor.x;
+    this.context.cursor.y = boxStartY - boxHeight - marginBottom;
   }
 
   private addNewPage(): void {
