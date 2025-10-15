@@ -23,6 +23,7 @@ export const Text = ({
     colour = "#000000",
     align = "left",
     margin = [0, 0, 0, 0],
+    lineHeight,
     font = "Helvetica",
     weight = "normal",
     style = "normal",
@@ -32,6 +33,7 @@ export const Text = ({
     colour?: string;
     align?: "left" | "center" | "right";
     margin?: [number, number, number, number];
+    lineHeight?: number;
     font?: "Helvetica" | "Times" | "Courier";
     weight?: "normal" | "bold";
     style?: "normal" | "italic" | "bold-italic";
@@ -46,6 +48,7 @@ export const Text = ({
     colour,
     align,
     margin,
+    lineHeight,
     font,
     weight,
     style,

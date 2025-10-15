@@ -5,6 +5,7 @@ export interface TextNode {
   colour?: string;
   align?: "left" | "center" | "right";
   margin?: [number, number, number, number];
+  lineHeight?: number;
   font?: "Helvetica" | "Times" | "Courier";
   weight?: "normal" | "bold";
   style?: "normal" | "italic" | "bold-italic";

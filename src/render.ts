@@ -101,6 +101,7 @@ class PDFRenderer {
     const colour = node.colour ?? "#000000";
     const align = node.align ?? "left";
     const margin = node.margin ?? [0, 0, 0, 0];
+    const lineHeight = node.lineHeight ?? size * 1.2;
     const fontFamily = node.font ?? "Helvetica";
     const weight = node.weight ?? "normal";
     const style = node.style ?? "normal";
@@ -150,7 +151,7 @@ class PDFRenderer {
       });
 
       // Move cursor down for next line
-      this.context.cursor.y -= size + 4;
+      this.context.cursor.y -= lineHeight;
     }
 
     // Apply bottom margin
