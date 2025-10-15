@@ -242,26 +242,41 @@ class PDFRenderer {
     const padding = node.padding ?? [0, 0, 0, 0];
     const [marginTop, marginRight, marginBottom, marginLeft] = margin;
     const [paddingTop, paddingRight, paddingBottom, paddingLeft] = padding;
+    const position = node.position ?? "relative";
 
-    // Apply top margin
-    this.context.cursor.y -= marginTop;
+    // Determine box position based on positioning mode
+    let boxX: number;
+    let boxStartY: number;
+    const savedCursor = { ...this.context.cursor };
 
-    // Check if we need a new page
-    if (this.context.cursor.y < this.DEFAULT_MARGIN) {
-      this.addNewPage();
+    if (position === "absolute" && node.x !== undefined && node.y !== undefined) {
+      // Absolute positioning: x,y from bottom-left of page
+      boxX = node.x;
+      boxStartY = node.y;
+    } else if (position === "relative" && (node.x !== undefined || node.y !== undefined)) {
+      // Relative positioning: offset from current cursor position
+      const offsetX = node.x ?? 0;
+      const offsetY = node.y ?? 0;
+      boxX = this.context.cursor.x + offsetX + marginLeft;
+      boxStartY = this.context.cursor.y - marginTop + offsetY;
+    } else {
+      // Flow-based positioning (default behavior)
+      this.context.cursor.y -= marginTop;
+      
+      if (this.context.cursor.y < this.DEFAULT_MARGIN) {
+        this.addNewPage();
+      }
+      
+      boxX = this.DEFAULT_MARGIN + marginLeft;
+      boxStartY = this.context.cursor.y;
     }
 
     // Calculate box dimensions
-    const boxX = this.DEFAULT_MARGIN + marginLeft;
     const boxWidth = node.width ?? (this.context.bounds.width - 2 * this.DEFAULT_MARGIN - marginLeft - marginRight);
-
-    // Save starting position
-    const boxStartY = this.context.cursor.y;
-    const savedCursor = { ...this.context.cursor };
 
     // Adjust cursor for padding and render children
     this.context.cursor.x = boxX + paddingLeft;
-    this.context.cursor.y -= paddingTop;
+    this.context.cursor.y = boxStartY - paddingTop;
 
     const contentStartY = this.context.cursor.y;
 
@@ -297,9 +312,15 @@ class PDFRenderer {
       });
     }
 
-    // Restore cursor position and move past the box
-    this.context.cursor.x = savedCursor.x;
-    this.context.cursor.y = boxStartY - boxHeight - marginBottom;
+    // Restore cursor position based on positioning mode
+    if (position === "absolute") {
+      // Absolute positioning doesn't affect document flow
+      this.context.cursor = savedCursor;
+    } else {
+      // Relative and flow positioning advance the cursor
+      this.context.cursor.x = savedCursor.x;
+      this.context.cursor.y = boxStartY - boxHeight - marginBottom;
+    }
   }
 
   private addNewPage(): void {

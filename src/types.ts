@@ -18,6 +18,9 @@ export interface SectionNode {
 
 export interface BoxNode {
   type: "Box";
+  x?: number;
+  y?: number;
+  position?: "relative" | "absolute";
   width?: number;
   height?: number;
   padding?: [number, number, number, number];

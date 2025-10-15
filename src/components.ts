@@ -58,6 +58,9 @@ export const Section = ({ title, children }: ComponentProps<{ title: string }>):
 });
 
 export const Box = ({
+    x,
+    y,
+    position,
     width,
     height,
     padding = [0, 0, 0, 0],
@@ -66,6 +69,9 @@ export const Box = ({
     backgroundColor,
     children,
 }: ComponentProps<{
+    x?: number;
+    y?: number;
+    position?: "relative" | "absolute";
     width?: number;
     height?: number;
     padding?: [number, number, number, number];
@@ -77,6 +83,9 @@ export const Box = ({
     backgroundColor?: string;
 }>): BoxNode => ({
     type: "Box",
+    x,
+    y,
+    position,
     width,
     height,
     padding,
