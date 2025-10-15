@@ -1,16 +1,11 @@
-// Type definitions
-export type VNode = {
-    type: string | Function;
-    props: Record<string, any>;
-    children: VNode[];
-};
+export type { VNode, TextNode, SectionNode, ContainerNode } from "./render";
 
 // JSX factory function
 export function createElement(
     type: string | Function,
     props: Record<string, any> | null,
     ...children: any[]
-): VNode {
+): any {
     const normalizedProps = props || {};
     const normalizedChildren = children.flat();
     
@@ -19,7 +14,7 @@ export function createElement(
         return type({ ...normalizedProps, children: normalizedChildren });
     }
     
-    // Otherwise, return a VNode
+    // Otherwise, return a basic node structure
     return {
         type,
         props: normalizedProps,

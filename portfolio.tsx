@@ -7,7 +7,7 @@ const portfolio = (
   <Doc>
     <Page>
       <Text size={24}>Preston Arnold</Text>
-      <Text size={14}>Software Developer</Text>
+      <Text size={14} colour="#3366ff" align="center" margin={[10, 0, 5, 0]}>Software Developer</Text>
 
       <Section title="Experience">
         <Text>Experience</Text>
