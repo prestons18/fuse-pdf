@@ -89,4 +89,4 @@ const demo = (
   </Doc>
 );
 
-await render(demo, "font-demo.pdf");
+await render(demo, "../out/font-demo.pdf");

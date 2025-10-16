@@ -119,4 +119,4 @@ const portfolio = (
   </Doc>
 );
 
-await render(portfolio, "portfolio.pdf");
+await render(portfolio, "../out/portfolio.pdf");
